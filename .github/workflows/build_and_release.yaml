@@ -60,14 +60,21 @@ jobs:
       - name: Install Aseprite
         shell: bash
         run: |
-          # Клонираме конкретната версия
+          - name: Install Aseprite
+        shell: bash
+        run: |
+          # 1. Клонираме
           git clone --recurse-submodules -j8 https://github.com/aseprite/aseprite --branch v1.3.16.1
           
-          # 1. Променяме версията в главния конфигуратор
-          sed -i 's/1.3.16.1-dev/1.3.16.1/g' aseprite/src/ver/CMakeLists.txt
-          
-          # 3. ПРЕМАХВАМЕ Git следите - това е най-важното за m_isDeveloper
+          # 2. Убиваме Git, за да не може никой скрипт да проверява статуса
           rm -rf aseprite/.git
+          
+          # 3. Хакваме шаблона на версията (Най-важното!)
+          # Заменяме целия ред #cmakedefine VERSION "@VERSION@" с #define VERSION "1.3.16.1"
+          sed -i 's/#cmakedefine VERSION "@VERSION@"/#define VERSION "1.3.16.1"/g' aseprite/src/ver/generated_version.h.in
+          
+          # 4. Променяме и в CMakeLists за всеки случай
+          sed -i 's/1.3.16.1-dev/1.3.16.1/g' aseprite/src/ver/CMakeLists.txt
       - name: Install Skia
         working-directory: aseprite
         shell: bash
