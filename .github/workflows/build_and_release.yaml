@@ -7,6 +7,7 @@ on:
     paths:
       - 'BuildLog.md'
   workflow_dispatch:
+
 env:
   BUILD_TYPE: Release
 
@@ -60,31 +61,34 @@ jobs:
       - name: Install Aseprite
         shell: bash
         run: |
-          # 1. Клонираме
-          git clone --recurse-submodules -j8 https://github.com/aseprite/aseprite --branch v1.3.16.1
+          # 1. Клонираме новата версия v1.3.17
+          git clone --recurse-submodules -j8 https://github.com/aseprite/aseprite --branch v1.3.17
           
-          # 2. Убиваме Git, за да не може никой скрипт да проверява статуса
+          # 2. Премахваме Git метаданните
           rm -rf aseprite/.git
           
-          # 3. Хакваме шаблона на версията (Най-важното!)
-          # Заменяме целия ред #cmakedefine VERSION "@VERSION@" с #define VERSION "1.3.16.1"
-          sed -i 's/#cmakedefine VERSION "@VERSION@"/#define VERSION "1.3.16.1"/g' aseprite/src/ver/generated_version.h.in
+          # 3. Хакваме шаблона на версията за v1.3.17
+          sed -i 's/#cmakedefine VERSION "@VERSION@"/#define VERSION "1.3.17"/g' aseprite/src/ver/generated_version.h.in
           
-          # 4. Променяме и в CMakeLists за всеки случай
-          sed -i 's/1.3.16.1-dev/1.3.16.1/g' aseprite/src/ver/CMakeLists.txt
+          # 4. Променяме и в CMakeLists
+          # Търсим всяко споменаване на -dev версия и го фиксираме на чиста 1.3.17
+          sed -i 's/1.3.17-dev/1.3.17/g' aseprite/src/ver/CMakeLists.txt
+          
       - name: Install Skia
         working-directory: aseprite
         shell: bash
         run: |
+          # Използваме m124 версията на Skia, която е тествана с 1.3.x сериите
+          SKIA_REL="m124-08a5439a6b"
           if [[ "${{ runner.os }}" == "Windows" ]] ; then
             choco install wget -y --no-progress
-            wget https://github.com/aseprite/skia/releases/download/m124-08a5439a6b/Skia-Windows-Release-x64.zip
+            wget https://github.com/aseprite/skia/releases/download/$SKIA_REL/Skia-Windows-Release-x64.zip
             unzip Skia-Windows-Release-x64.zip -d skia
           elif [[ "${{ runner.os }}" == "macOS" ]] ; then
-            wget https://github.com/aseprite/skia/releases/download/m124-08a5439a6b/Skia-macOS-Release-arm64.zip
+            wget https://github.com/aseprite/skia/releases/download/$SKIA_REL/Skia-macOS-Release-arm64.zip
             unzip Skia-macOS-Release-arm64.zip -d skia
           else
-            wget https://github.com/aseprite/skia/releases/download/m124-08a5439a6b/Skia-Linux-Release-x64.zip
+            wget https://github.com/aseprite/skia/releases/download/$SKIA_REL/Skia-Linux-Release-x64.zip
             unzip Skia-Linux-Release-x64.zip -d skia
           fi
       - uses: aseprite/get-ninja@main
@@ -126,14 +130,14 @@ jobs:
       - name: Make portable zip
         working-directory: aseprite/build/bin
         run: echo '# This file is here so Aseprite behaves as a portable program' > aseprite.ini
-      - name: Create release
+      - name: Create release artifact
         working-directory: aseprite/build/bin
-        run: 7z -tzip a Aseprite-${{ needs.create-release.outputs.release-tag }}-${{ runner.os }}.zip *
+        run: 7z -tzip a Aseprite-v1.3.17-${{ runner.os }}.zip *
       - name: Upload release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: aseprite/build/bin/Aseprite-${{ needs.create-release.outputs.release-tag }}-${{ runner.os }}.zip
-          asset_name: Aseprite-${{ needs.create-release.outputs.release-tag }}-${{ runner.os }}.zip
+          file: aseprite/build/bin/Aseprite-v1.3.17-${{ runner.os }}.zip
+          asset_name: Aseprite-v1.3.17-${{ runner.os }}.zip
           tag: ${{ needs.create-release.outputs.release-tag }}
-          overwrite: true # Добавяме това, за да презаписва, ако файлът съществува
+          overwrite: true
